@@ -7,7 +7,7 @@
 <title>Shiva Shrine AR</title>
 <script>
 /* Phones and tablets skip the intro and open the camera straight away (https only).
-   ?preview shows the scene in 3D without a camera. */
+   ?preview plays the whole sequence in 3D without a camera. */
 try {
   var secure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
   var q = new URLSearchParams(location.search);
@@ -20,7 +20,7 @@ try {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi&family=Hind:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-/* Layout: one full-screen stage. Intro over lamp-lit dark; AR view is the live camera with a slim rail. */
+/* Layout: one full-screen stage. Intro over lamp-lit dark; AR view is the live camera; the sanctum view is full-bleed with letterbox bars. */
 :root{
   --night:#07060a;      /* sanctum dark */
   --night2:#1a120c;
@@ -33,7 +33,7 @@ try {
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--night);color:var(--ash);font-family:var(--body);-webkit-font-smoothing:antialiased}
+html,body{margin:0;height:100%;background:var(--night);color:var(--ash);font-family:var(--body);-webkit-font-smoothing:antialiased;overscroll-behavior:none}
 button{font:inherit;color:inherit}
 a{color:var(--ember)}
 .hidden{display:none !important}
@@ -44,8 +44,7 @@ a{color:var(--ember)}
   background:radial-gradient(110% 80% at 50% 35%, var(--night2) 0%, var(--night) 70%)}
 .intro-grid{position:relative;z-index:1;display:flex;flex-wrap:wrap;gap:28px;align-items:center;justify-content:center;width:100%;max-width:980px}
 .panel{flex:1 1 360px;max-width:460px;min-width:0;padding:28px 26px;border-radius:20px;
-  background:linear-gradient(180deg, rgba(30,20,13,.9), rgba(7,6,10,.95));border:1px solid var(--ember-soft);
-  box-shadow:0 30px 60px -20px rgba(0,0,0,.8)}
+  background:linear-gradient(180deg, rgba(30,20,13,.9), rgba(7,6,10,.95));border:1px solid var(--ember-soft);box-shadow:0 30px 60px -20px rgba(0,0,0,.8)}
 .eyebrow{display:flex;align-items:center;gap:10px;margin:0 0 12px;font:500 11px/1 var(--body);letter-spacing:.3em;text-transform:uppercase;color:var(--ember)}
 .dot{width:9px;height:9px;border-radius:50%;background:#fff;box-shadow:0 0 10px 3px rgba(255,240,215,.9)}
 h1{margin:0;font:400 clamp(38px,7.5vw,52px)/1 var(--display);text-wrap:balance}
@@ -73,18 +72,38 @@ h1 span{display:block;margin-top:8px;font-size:.55em;color:var(--ember)}
 .qr-wrap span{font-size:12px;line-height:1.45;color:var(--muted)}
 @media (pointer: coarse) and (max-width: 820px){.target-card{display:none}}
 
-/* ---------- AR VIEW ---------- */
-.ar{position:fixed;inset:0;background:#000;overflow:hidden}
-.ar-stage{position:absolute;inset:0}
+/* ---------- AR + SANCTUM VIEW ---------- */
+.ar{position:fixed;inset:0;background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+.ar-stage{position:absolute;inset:0;transition:opacity .9s ease}
 .ar-stage video{object-fit:cover}
-.ar-top{position:absolute;left:0;right:0;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;
+.cinema{position:absolute;inset:0;z-index:2}
+.cinema canvas{display:block;width:100% !important;height:100% !important}
+.flash{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 55%, rgba(255,236,200,.95), rgba(255,190,110,.35) 40%, rgba(0,0,0,0) 75%)}
+.flash.go{animation:flash 1.3s ease-out}
+@keyframes flash{0%{opacity:0}25%{opacity:1}100%{opacity:0}}
+.bars::before,.bars::after{content:"";position:absolute;left:0;right:0;z-index:4;height:0;background:#000;transition:height 1.6s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.bars::before{top:0}.bars::after{bottom:0}
+.bars.on::before,.bars.on::after{height:7vh}
+.mantra{position:absolute;left:0;right:0;bottom:calc(9vh + env(safe-area-inset-bottom,0px));z-index:5;text-align:center;pointer-events:none;opacity:0;transition:opacity 1.8s ease}
+.mantra.on{opacity:1}
+.mantra p{margin:0;font:400 clamp(28px,6vw,44px)/1.1 var(--display);color:#fff4e0;text-shadow:0 0 24px rgba(255,190,110,.65)}
+.mantra small{display:block;margin-top:6px;font:500 12px/1 var(--body);letter-spacing:.32em;text-transform:uppercase;color:rgba(255,236,210,.75)}
+.ar-top{position:absolute;left:0;right:0;top:0;z-index:6;display:flex;align-items:center;justify-content:space-between;gap:12px;
   padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px;background:linear-gradient(rgba(0,0,0,.55),transparent);pointer-events:none}
 .ar-top .eyebrow{margin:0}
 .icon-btn{pointer-events:auto;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;border:1px solid var(--ember-soft);background:rgba(7,6,10,.6);cursor:pointer}
 .icon-btn svg{width:18px;height:18px}
-.ar-bottom{position:absolute;left:0;right:0;bottom:0;z-index:5;display:flex;justify-content:center;
-  padding:16px 16px calc(22px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,rgba(0,0,0,.55));pointer-events:none}
-.hint{margin:0;font:500 13px/1.3 var(--body);letter-spacing:.06em;text-shadow:0 1px 6px #000;text-align:center}
+.ar-bottom{position:absolute;left:0;right:0;bottom:0;z-index:6;display:flex;flex-direction:column;align-items:center;gap:12px;
+  padding:16px 16px calc(22px + env(safe-area-inset-bottom,0px));pointer-events:none}
+.hint{margin:0;font:500 13px/1.35 var(--body);letter-spacing:.05em;text-shadow:0 1px 6px #000;text-align:center;transition:opacity .8s}
+.hint.fade{opacity:0}
+.enter{pointer-events:auto;position:relative;display:flex;align-items:center;gap:10px;height:50px;padding:0 22px 0 8px;border-radius:999px;cursor:pointer;
+  border:1px solid rgba(255,214,150,.7);background:rgba(20,12,6,.72);color:#fff4e0;font:600 14px/1 var(--body);letter-spacing:.12em;text-transform:uppercase;
+  box-shadow:0 0 30px -6px rgba(255,180,90,.8);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.enter svg{width:36px;height:36px;transform:rotate(-90deg)}
+.enter .track{stroke:rgba(255,220,170,.25)}
+.enter .prog{stroke:#ffd28a;stroke-dasharray:100;stroke-dashoffset:100}
+.enter:focus-visible{outline:3px solid #fff;outline-offset:3px}
 .scanning{position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;pointer-events:none}
 .scan-frame{position:relative;width:min(64vw,300px);aspect-ratio:744/1000}
 .scan-frame img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.22;border-radius:4px}
@@ -96,8 +115,8 @@ h1 span{display:block;margin-top:8px;font-size:.55em;color:var(--ember)}
 .scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--ember),transparent);box-shadow:0 0 12px var(--ember);animation:scan 2.2s ease-in-out infinite}
 @keyframes scan{0%,100%{top:4%}50%{top:96%}}
 .scan-text{position:absolute;left:50%;bottom:-54px;transform:translateX(-50%);white-space:nowrap;font:500 13px/1 var(--body);letter-spacing:.04em;text-shadow:0 1px 6px #000}
-.loading{position:absolute;inset:0;z-index:6;display:grid;place-items:center;background:rgba(0,0,0,.6);font:500 14px/1.4 var(--body);letter-spacing:.08em}
-.err{position:absolute;inset:0;z-index:7;display:grid;place-items:center;padding:24px;background:rgba(7,6,10,.94)}
+.loading{position:absolute;inset:0;z-index:7;display:grid;place-items:center;background:rgba(0,0,0,.6);font:500 14px/1.4 var(--body);letter-spacing:.08em}
+.err{position:absolute;inset:0;z-index:8;display:grid;place-items:center;padding:24px;background:rgba(7,6,10,.94)}
 .err div{max-width:380px;text-align:center}
 .err h2{margin:0 0 10px;font:400 30px/1.1 var(--display)}
 .err p{margin:0 0 18px;color:var(--muted);line-height:1.6;font-size:14px}
@@ -122,18 +141,18 @@ h1 span{display:block;margin-top:8px;font-size:.55em;color:var(--ember)}
     <section class="panel" aria-labelledby="title">
       <p class="eyebrow"><span class="dot"></span>Scanned shrine · AR</p>
       <h1 id="title">Shiva Shrine<span lang="hi">शिव मंदिर</span></h1>
-      <p class="lede">The poster opens like a window into a real shrine, scanned in 3D. A small light drifts around the Shivling, lighting the stone as it passes, and now and then floats out to you.</p>
+      <p class="lede">The poster opens like a window into a real shrine, scanned in 3D. Then the camera glides inside, into the lamp-lit sanctum, where you can look around and offer water to the Shivling.</p>
       <ol class="steps">
         <li><span class="n">1</span><span>Stand in front of the poster (or show the image on another screen).</span></li>
         <li><span class="n">2</span><span>On a phone the camera opens by itself; just allow it. Here, tap <b>Start AR</b>.</span></li>
-        <li><span class="n">3</span><span>Move your phone to look inside from different angles. Tap to call the light.</span></li>
+        <li><span class="n">3</span><span>Inside: drag to look around, pinch to move closer, tap to offer water.</span></li>
       </ol>
       <button class="start" id="startBtn" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.5"/></svg>
         Start AR
       </button>
-      <p class="links"><a href="?preview">Preview in 3D on this screen</a></p>
-      <p class="note">Runs in the browser, with no app to install. Works in Safari on iPhone and Chrome on Android.</p>
+      <p class="links"><a href="?preview">Play it in 3D on this screen</a></p>
+      <p class="note">Runs in the browser, with no app to install. Works in Safari on iPhone and Chrome on Android. Turn the sound on for the bell.</p>
       <p class="warn hidden" id="httpsWarn">Open this page from an <b>https://</b> address for the camera to start.</p>
     </section>
     <aside class="target-card" aria-label="Tracking image">
@@ -147,9 +166,12 @@ h1 span{display:block;margin-top:8px;font-size:.55em;color:var(--ember)}
   </div>
 </main>
 
-<!-- ================= AR VIEW ================= -->
-<div class="ar hidden" id="ar">
+<!-- ================= AR + SANCTUM ================= -->
+<div class="ar hidden bars" id="ar">
   <div class="ar-stage" id="arStage"></div>
+  <div class="cinema hidden" id="cinema"></div>
+  <div class="flash" id="flash"></div>
+  <div class="mantra" id="mantra" aria-live="polite"><p lang="sa">ॐ नमः शिवाय</p><small>Om Namah Shivaya</small></div>
   <div class="scanning hidden" id="scanning">
     <div class="scan-frame">
       <img src="shiva-target.jpg" alt="">
@@ -159,12 +181,18 @@ h1 span{display:block;margin-top:8px;font-size:.55em;color:var(--ember)}
     </div>
   </div>
   <header class="ar-top">
-    <p class="eyebrow"><span class="dot"></span>Shiva Shrine AR</p>
-    <button class="icon-btn" id="closeBtn" type="button" aria-label="Close AR">
+    <p class="eyebrow"><span class="dot"></span>Shiva Shrine</p>
+    <button class="icon-btn" id="closeBtn" type="button" aria-label="Close">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
     </button>
   </header>
-  <div class="ar-bottom"><p class="hint hidden" id="hint">Move to look inside · tap to call the light</p></div>
+  <div class="ar-bottom">
+    <p class="hint hidden" id="hint">Tap to call the light</p>
+    <button class="enter hidden" id="enterBtn" type="button">
+      <svg viewBox="0 0 36 36" aria-hidden="true"><circle class="track" cx="18" cy="18" r="15.9" fill="none" stroke-width="2.5" pathLength="100"/><circle class="prog" id="enterProg" cx="18" cy="18" r="15.9" fill="none" stroke-width="2.5" stroke-linecap="round" pathLength="100"/></svg>
+      Step inside
+    </button>
+  </div>
   <div class="loading hidden" id="loading">Waking the camera…</div>
   <div class="err hidden" id="err" role="alert">
     <div>
@@ -177,10 +205,16 @@ h1 span{display:block;margin-top:8px;font-size:.55em;color:var(--ember)}
 
 <script type="module">
 import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 const $ = (id) => document.getElementById(id);
 const isHttps = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const PREVIEW = document.documentElement.classList.contains('preview');
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
 if (!isHttps) $('httpsWarn').classList.remove('hidden');
 try {
   if (/^https?:/.test(location.protocol) && window.QRCode){
@@ -188,15 +222,44 @@ try {
   } else $('qrWrap').classList.add('hidden');
 } catch (e) { $('qrWrap').classList.add('hidden'); }
 
-const clamp01 = (x) => Math.max(0, Math.min(1, x));
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const clamp01 = (x) => clamp(x, 0, 1);
 const ease = (t) => 1 - Math.pow(1 - t, 3);
 const smooth = (t) => t * t * (3 - 2 * t);
+const easeInOut = (t) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const seg = (t, s, d) => clamp01((t - s) / d);
 const PH = 1000 / 744;                 // poster height when its width is 1
 
 /* =====================================================================
+   SOUND: a soft temple bell, synthesised (starts only after a tap)
+   ===================================================================== */
+let actx = null;
+function bell(f0 = 392, gain = .14){
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    const t = actx.currentTime, out = actx.createGain(); out.gain.value = gain; out.connect(actx.destination);
+    [[1, 1, 4.2], [2.01, .55, 3.0], [2.76, .35, 2.2], [5.4, .18, 1.4], [8.93, .08, .9]].forEach(([m, a, d]) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'sine'; o.frequency.value = f0 * m;
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+      o.connect(g); g.connect(out); o.start(t); o.stop(t + d + .1);
+    });
+  } catch (e) {}
+}
+function plink(){
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(1400, t); o.frequency.exponentialRampToValueAtTime(520, t + .12);
+    g.gain.setValueAtTime(.08, t); g.gain.exponentialRampToValueAtTime(.0001, t + .25);
+    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + .3);
+  } catch (e) {}
+}
+
+/* =====================================================================
    LOAD THE SHRINE  (uint16 xyz · uint8 rgb · uint32 triangles)
-   Already levelled, scaled and placed behind the poster in poster units.
+   Already levelled, scaled and placed behind the poster, in poster units.
    ===================================================================== */
 async function loadShrine(){
   const [meta, buf] = await Promise.all([
@@ -211,62 +274,86 @@ async function loadShrine(){
   for (let i = 0; i < n * 3; i++){
     const k = i % 3;
     pos[i] = meta.lo[k] + (q[i] / 65535) * (meta.hi[k] - meta.lo[k]);
-    col[i] = Math.pow(c8[i] / 255, 2.2);                       // sRGB -> linear
+    col[i] = Math.pow(c8[i] / 255, 2.2);
   }
-  return { pos, col, idx, n, meta };
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.setIndex(new THREE.BufferAttribute(idx, 1));
+  geo.computeVertexNormals();
+  return { pos, col, n, meta, geo };
+}
+
+/* soft textures */
+function glowTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+  const r = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(.18, 'rgba(255,248,235,.75)'); r.addColorStop(.45, 'rgba(255,225,180,.18)'); r.addColorStop(1, 'rgba(255,220,170,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 256, 256);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function ringTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+  g.strokeStyle = 'rgba(255,230,190,1)'; g.lineWidth = 5; g.shadowColor = '#ffc070'; g.shadowBlur = 16;
+  g.beginPath(); g.arc(128, 128, 100, 0, Math.PI * 2); g.stroke();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function smokeTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  for (let i = 0; i < 14; i++){
+    const x = 40 + Math.random() * 48, y = 40 + Math.random() * 48, r = 16 + Math.random() * 26;
+    const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,.22)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
 /* =====================================================================
-   BUILD THE SCENE
+   THE SHRINE SCENE (used by both the AR view and the sanctum view)
    The poster is a window (1 × 1.344) at z = 0; the shrine sits behind it.
    ===================================================================== */
-function buildScene(parent, data){
+function buildScene(parent, data, opts = {}){
+  const cinema = !!opts.cinema;
   const root = new THREE.Group(); parent.add(root);
-  const L = data.meta.lingam;                       // top of the Shivling, in poster units
+  const M = data.meta;
+  const LING = new THREE.Vector3(...M.lingam), POT = new THREE.Vector3(...M.pot), POTMID = new THREE.Vector3(...M.potMid);
+  const glowTex = glowTexture(), ringTex = ringTexture();
 
-  // 1. the wall around the window: invisible, but it hides anything behind it -> a true portal
-  // built from four overlapping slabs (no seams for the room to leak through)
+  // 1. the wall around the window: invisible, but it hides whatever is behind it -> a true portal
   const occMat = new THREE.MeshBasicMaterial({ colorWrite: false });
   [[0, PH / 2 + 3, 12, 6], [0, -PH / 2 - 3, 12, 6], [-.5 - 3, 0, 6, PH + .2], [.5 + 3, 0, 6, PH + .2]].forEach(([x, y, w, h]) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), occMat); m.position.set(x, y, 0); m.renderOrder = -1; root.add(m);
   });
-
-  // 2. a dark sanctum box behind everything, so gaps in the scan read as shadow, not as the real wall
-  const box = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.56, 1.7), new THREE.MeshBasicMaterial({ color: 0x07060a, side: THREE.BackSide }));
-  box.position.set(0, .0, -.862); root.add(box);          // just behind the wall plane (no edge flicker)
-
-  // 3. window reveal: a little wall thickness, catching the light
+  // 2. a dark sanctum box, so gaps in the scan read as shadow
+  const box = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.56, 1.7), new THREE.MeshBasicMaterial({ color: 0x050407, side: THREE.BackSide }));
+  box.position.set(0, 0, -.862); root.add(box);
+  // 3. window reveal (wall thickness)
   const revealMat = new THREE.MeshStandardMaterial({ color: 0x4a3626, roughness: .9 });
-  const D = .06;
-  [[1, D, 0, PH / 2], [1, D, 0, -PH / 2]].forEach(([w, d, x, y]) => {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), revealMat);
-    m.rotation.x = y > 0 ? Math.PI / 2 : -Math.PI / 2; m.position.set(x, y, -d / 2); root.add(m);
-  });
-  [[-.5], [.5]].forEach(([x]) => {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(D, PH), revealMat);
-    m.rotation.y = x < 0 ? Math.PI / 2 : -Math.PI / 2; m.position.set(x, 0, -D / 2); root.add(m);
-  });
+  [[PH / 2, Math.PI / 2], [-PH / 2, -Math.PI / 2]].forEach(([y, r]) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, .06), revealMat); m.rotation.x = r; m.position.set(0, y, -.03); root.add(m); });
+  [[-.5, Math.PI / 2], [.5, -Math.PI / 2]].forEach(([x, r]) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(.06, PH), revealMat); m.rotation.y = r; m.position.set(x, 0, -.03); root.add(m); });
 
-  // 4. lights: warm lamp-lit ambience + the roaming light (added below)
+  // 4. lights
   const hemi = new THREE.HemisphereLight(0xffe6c8, 0x2a1a10, 0); root.add(hemi);
+  let spot = null, lamp = null;
+  if (cinema){
+    // a shaft of light from above onto the Shivling, and a flickering lamp on the altar
+    spot = new THREE.SpotLight(0xffe2b8, 0, 2.2, .36, .85, 1.4);
+    spot.position.set(LING.x + .05, .66, LING.z + .02); spot.target.position.copy(LING); root.add(spot, spot.target);
+    lamp = new THREE.PointLight(0xff9a3a, 0, 1.1, 2); lamp.position.set(-.18, LING.y + .16, LING.z - .3); root.add(lamp);
+  }
 
-  // 5. the shrine mesh
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(data.pos, 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(data.col, 3));
-  geo.setIndex(new THREE.BufferAttribute(data.idx, 1));
-  geo.computeVertexNormals();
+  // 5. the shrine itself
   const shrineMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .8, metalness: 0, side: THREE.DoubleSide, transparent: true, opacity: 0 });
-  const shrine = new THREE.Mesh(geo, shrineMat); root.add(shrine);
+  const shrine = new THREE.Mesh(data.geo, shrineMat); root.add(shrine);
 
-  // 6. the same vertices as glowing dust: it gathers into the shrine, then lingers as a shimmer near the light
+  // 6. glowing dust: gathers into the shrine on arrival, then shimmers near the light
   const n = data.n, seeds = new Float32Array(n);
   for (let i = 0; i < n; i++) seeds[i] = Math.random();
   const pgeo = new THREE.BufferGeometry();
   pgeo.setAttribute('position', new THREE.BufferAttribute(data.pos, 3));
   pgeo.setAttribute('color', new THREE.BufferAttribute(data.col, 3));
   pgeo.setAttribute('seed', new THREE.BufferAttribute(seeds, 1));
-  const pU = { uT: { value: 0 }, uTime: { value: 0 }, uFade: { value: 1 }, uBlob: { value: new THREE.Vector3() }, uFlash: { value: 0 }, uPx: { value: 1 } };
+  const pU = { uT: { value: 0 }, uTime: { value: 0 }, uBlob: { value: new THREE.Vector3() }, uFlash: { value: 0 }, uPx: { value: 1 } };
   const dust = new THREE.Points(pgeo, new THREE.ShaderMaterial({
     uniforms: pU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     vertexShader: `
@@ -274,38 +361,27 @@ function buildScene(parent, data){
       uniform float uT, uTime, uPx; uniform vec3 uBlob;
       varying vec3 vCol; varying float vA;
       void main(){
-        float k = smoothstep(seed * .6, seed * .6 + .4, uT);            // each grain arrives at its own moment
-        vec3 from = position * vec3(.15, .15, .15) + vec3(0.0, 0.0, -.6) + vec3(sin(seed * 91.0), cos(seed * 47.0), sin(seed * 13.0)) * .35;
+        float k = smoothstep(seed * .6, seed * .6 + .4, uT);
+        vec3 from = position * .15 + vec3(0.0, 0.0, -.6) + vec3(sin(seed * 91.0), cos(seed * 47.0), sin(seed * 13.0)) * .35;
         vec3 p = mix(from, position, k);
-        p.y += sin(uTime * 1.3 + seed * 40.0) * .002 * k;
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
-        float near = 1.0 - smoothstep(0.0, .22, distance(p, uBlob));
+        float near = 1.0 - smoothstep(0.0, .2, distance(p, uBlob));
         vCol = color * (1.0 + near * 2.0) + vec3(1.0, .85, .6) * near * .5;
-        vA = mix(.95, 0.0, k) + near * .55 * k;
-        gl_PointSize = uPx * .004 * (1.0 + near * 1.4 + (1.0 - k) * 1.2) / -mv.z;
+        vA = mix(.95, 0.0, k) + near * .5 * k;
+        gl_PointSize = clamp(uPx * .004 * (1.0 + near * 1.4 + (1.0 - k) * 1.2) / -mv.z, 0.0, 24.0);
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: `
-      uniform float uFade, uFlash; varying vec3 vCol; varying float vA;
-      void main(){
-        vec2 c = gl_PointCoord - .5; float d = dot(c, c);
-        if (d > .25) discard;
-        gl_FragColor = vec4(vCol * (1.0 + uFlash), smoothstep(.25, 0.0, d) * vA * uFade);
-      }`
+      uniform float uFlash; varying vec3 vCol; varying float vA;
+      void main(){ vec2 c = gl_PointCoord - .5; float d = dot(c, c); if (d > .25) discard;
+        gl_FragColor = vec4(vCol * (1.0 + uFlash), smoothstep(.25, 0.0, d) * vA); }`
   }));
   dust.frustumCulled = false; root.add(dust);
 
-  // 7. the roaming light: core + halo + a real point light + a short trail
-  const glowTex = (() => {
-    const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
-    const r = g.createRadialGradient(128, 128, 0, 128, 128, 128);
-    r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(.18, 'rgba(255,248,235,.75)'); r.addColorStop(.45, 'rgba(255,225,180,.18)'); r.addColorStop(1, 'rgba(255,220,170,0)');
-    g.fillStyle = r; g.fillRect(0, 0, 256, 256);
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-  })();
+  // 7. the roaming light
   const sprite = (s, o, color = 0xffffff) => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: o })); m.scale.setScalar(s); return m; };
   const blob = new THREE.Group(); root.add(blob);
-  const core = sprite(.05, 0), halo = sprite(.2, 0, 0xffe8c8);
+  const core = sprite(.045, 0), halo = sprite(.2, 0, 0xffe8c8);
   blob.add(halo, core);
   const light = new THREE.PointLight(0xfff1dc, 0, 1.6, 2); blob.add(light);
   const TRAIL = 32, trailPos = new Float32Array(TRAIL * 3), trailA = new Float32Array(TRAIL);
@@ -314,52 +390,109 @@ function buildScene(parent, data){
   tgeo.setAttribute('a', new THREE.BufferAttribute(trailA, 1));
   const trail = new THREE.Points(tgeo, new THREE.ShaderMaterial({
     uniforms: { uPx: pU.uPx }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-    vertexShader: `attribute float a; uniform float uPx; varying float vA; void main(){ vA = a; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = uPx * .014 * a / -mv.z; gl_Position = projectionMatrix * mv; }`,
+    vertexShader: `attribute float a; uniform float uPx; varying float vA; void main(){ vA = a; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = clamp(uPx * .012 * a / -mv.z, 0.0, 40.0); gl_Position = projectionMatrix * mv; }`,
     fragmentShader: `varying float vA; void main(){ vec2 c = gl_PointCoord - .5; float d = dot(c, c); if (d > .25) discard; gl_FragColor = vec4(1.0, .93, .8, smoothstep(.25, 0.0, d) * vA * .8); }`
   }));
   trail.frustumCulled = false; root.add(trail);
   const history = [];
-
-  // tap ripple
-  const ringTex = (() => {
-    const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
-    g.strokeStyle = 'rgba(255,225,180,1)'; g.lineWidth = 5; g.shadowColor = '#ffc070'; g.shadowBlur = 16;
-    g.beginPath(); g.arc(128, 128, 100, 0, Math.PI * 2); g.stroke();
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-  })();
   const ripple = new THREE.Sprite(new THREE.SpriteMaterial({ map: ringTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
   root.add(ripple);
 
-  /* --- where the light goes ------------------------------------------------
-     An 18-second loop: circles the Shivling, rises to the hanging pot,
-     floats out through the window towards you, then sinks back to the stone. */
-  const C0 = new THREE.Vector3(L[0], L[1] - .08, L[2]);
-  const orbit = (t, out) => {
-    const a = t * .62, r = .2 + .04 * Math.sin(t * 1.3);
-    return out.set(C0.x + Math.cos(a) * r, C0.y + .06 * Math.sin(t * .9) + .03 * Math.sin(t * 2.2), C0.z + Math.sin(a) * r * .9);
-  };
-  const POT = new THREE.Vector3(L[0] + .02, L[1] + .33, L[2] + .03);
-  const OUT = new THREE.Vector3(.12, -.05, .32);
-  const vA = new THREE.Vector3(), vB = new THREE.Vector3();
-  function pathAt(t, out){
-    const T = t % 18;
-    orbit(t, vA);
-    if (T < 10) return out.copy(vA);
-    if (T < 12.5) return out.copy(vA).lerp(POT, smooth((T - 10) / 2.5));
-    if (T < 15) { const k = smooth((T - 12.5) / 2.5); vB.copy(POT).lerp(OUT, k); vB.y += Math.sin(k * Math.PI) * .08; return out.copy(vB); }
-    return out.copy(OUT).lerp(vA, smooth((T - 15) / 3));
+  // 8. sanctum-only atmosphere: light shafts, floating motes, incense, water offering
+  const extra = {};
+  if (cinema){
+    // light shafts: soft additive cones from above, with drifting streaks
+    const shaftMat = new THREE.ShaderMaterial({
+      uniforms: { uTime: { value: 0 }, uI: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      vertexShader: `varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform float uTime, uI; varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+        void main(){
+          float edge = pow(abs(dot(normalize(vN), normalize(vV))), 1.6);
+          float streak = .55 + .45 * sin(vUv.x * 40.0 + uTime * .6) * sin(vUv.x * 17.0 - uTime * .4);
+          float fade = smoothstep(0.0, .25, vUv.y) * smoothstep(1.0, .55, vUv.y);
+          gl_FragColor = vec4(vec3(1.0, .86, .62) * edge * streak * fade * uI, 1.0);
+        }`
+    });
+    const shafts = new THREE.Group(); root.add(shafts);
+    const addShaft = (rTop, rBot, h, x, y, z, rx, rz, k) => {
+      const g = new THREE.CylinderGeometry(rTop, rBot, h, 40, 1, true);
+      const m = new THREE.Mesh(g, shaftMat.clone()); m.material.uniforms = { uTime: shaftMat.uniforms.uTime, uI: { value: 0 } };
+      m.position.set(x, y, z); m.rotation.set(rx, 0, rz); m.userData.k = k; shafts.add(m); return m;
+    };
+    addShaft(.04, .16, 1.15, LING.x + .02, LING.y + .58, LING.z, 0, 0, .42);
+    addShaft(.02, .09, 1.3, LING.x - .28, LING.y + .55, LING.z - .1, .05, -.42, .3);
+    addShaft(.02, .07, 1.3, LING.x + .3, LING.y + .6, LING.z - .25, -.08, .38, .22);
+    extra.shafts = shafts; extra.shaftTime = shaftMat.uniforms.uTime;
+
+    // floating motes of dust in the lamp light
+    const MN = 900, mp = new Float32Array(MN * 3), ms = new Float32Array(MN);
+    for (let i = 0; i < MN; i++){ mp[i * 3] = (Math.random() - .5) * 1.3; mp[i * 3 + 1] = -.6 + Math.random() * 1.25; mp[i * 3 + 2] = -.08 - Math.random() * 1.35; ms[i] = Math.random(); }
+    const mg = new THREE.BufferGeometry(); mg.setAttribute('position', new THREE.BufferAttribute(mp, 3)); mg.setAttribute('seed', new THREE.BufferAttribute(ms, 1));
+    const motesU = { uTime: { value: 0 }, uPx: pU.uPx, uBlob: pU.uBlob, uLing: { value: LING.clone() }, uI: { value: 0 } };
+    const motes = new THREE.Points(mg, new THREE.ShaderMaterial({
+      uniforms: motesU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      vertexShader: `attribute float seed; uniform float uTime, uPx, uI; uniform vec3 uBlob, uLing; varying float vA;
+        void main(){
+          vec3 p = position;
+          p.y = -.6 + mod(position.y + .6 + uTime * (.004 + seed * .01), 1.25);
+          p.x += sin(uTime * .3 + seed * 30.0) * .03; p.z += cos(uTime * .25 + seed * 21.0) * .03;
+          float inShaft = 1.0 - smoothstep(.0, .2, length(p.xz - uLing.xz));
+          float nearBlob = 1.0 - smoothstep(0.0, .25, distance(p, uBlob));
+          vA = (.12 + inShaft * .7 + nearBlob * .8) * uI * (.5 + .5 * sin(uTime * 2.0 + seed * 50.0));
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_PointSize = clamp(uPx * .0035 * (.6 + seed) / -mv.z, 0.0, 10.0);
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `varying float vA; void main(){ vec2 c = gl_PointCoord - .5; float d = dot(c, c); if (d > .25) discard; gl_FragColor = vec4(1.0, .9, .72, smoothstep(.25, 0.0, d) * vA); }`
+    }));
+    motes.frustumCulled = false; root.add(motes); extra.motesU = motesU;
+
+    // incense smoke curling up from the altar
+    const smokeTex = smokeTexture(), puffs = [];
+    const src = new THREE.Vector3(LING.x - .22, LING.y + .12, LING.z - .3);
+    for (let i = 0; i < 16; i++){
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, color: 0xd8cfc4, transparent: true, depthWrite: false, opacity: 0 }));
+      s.userData = { off: i / 16, spin: (Math.random() - .5) * .6 }; root.add(s); puffs.push(s);
+    }
+    extra.puffs = puffs; extra.smokeSrc = src;
+
+    // the water offering: a drop from the hanging pot onto the Shivling
+    const drop = new THREE.Group();
+    const dropCore = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xdff4ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
+    dropCore.scale.set(.025, .04, 1); drop.add(dropCore);
+    const dropLight = new THREE.PointLight(0xcfe8ff, 0, .5, 2); drop.add(dropLight);
+    root.add(drop);
+    const wave = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 64), new THREE.MeshBasicMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+    wave.rotation.x = -Math.PI / 2; wave.position.copy(LING).add(new THREE.Vector3(0, .005, 0)); root.add(wave);
+    const halo2 = sprite(.5, 0, 0xffd9a0); halo2.position.copy(LING).add(new THREE.Vector3(0, .07, 0)); root.add(halo2);
+    extra.drop = { group: drop, core: dropCore, light: dropLight, wave, halo: halo2, startAt: -99, hitAt: -99, auto: 0 };
   }
 
-  const st = { foundAt: null, lostAt: null, callAt: -99, callFrom: new THREE.Vector3(), callTo: new THREE.Vector3() };
-  const tmp = new THREE.Vector3(), camL = new THREE.Vector3();
+  /* --- where the light goes: around the Shivling, up to the pot, out to the viewer, back --- */
+  const C0 = LING.clone().add(new THREE.Vector3(0, .1, 0));
+  const vA = new THREE.Vector3(), vB = new THREE.Vector3();
+  const st = { foundAt: null, lostAt: null, callAt: -99, callFrom: new THREE.Vector3(), callTo: new THREE.Vector3(), out: new THREE.Vector3(.12, -.05, .32) };
+  const orbit = (t, out) => { const a = t * .55, r = .2 + .04 * Math.sin(t * 1.3); return out.set(C0.x + Math.cos(a) * r, C0.y + .07 * Math.sin(t * .9) + .03 * Math.sin(t * 2.2), C0.z + Math.sin(a) * r * .9); };
+  function pathAt(t, out){
+    const T = t % 20; orbit(t, vA);
+    if (T < 11) return out.copy(vA);
+    if (T < 13.5) return out.copy(vA).lerp(POTMID, smooth((T - 11) / 2.5));
+    if (T < 16) { const k = smooth((T - 13.5) / 2.5); vB.copy(POTMID).lerp(st.out, k); vB.y += Math.sin(k * Math.PI) * .06; return out.copy(vB); }
+    return out.copy(st.out).lerp(vA, smooth((T - 16) / 4));
+  }
 
+  const tmp = new THREE.Vector3(), camL = new THREE.Vector3();
   function call(camera){
     if (st.foundAt === null) return;
-    st.callAt = performance.now() / 1000;
-    st.callFrom.copy(blob.position);
-    camera.getWorldPosition(camL); root.worldToLocal(camL);       // the viewer, in poster space
-    st.callTo.set(0, -.02, .05).lerp(camL, .35);                   // a third of the way out to the viewer
-    if (navigator.vibrate) try { navigator.vibrate(20); } catch (e) {}
+    st.callAt = performance.now() / 1000; st.callFrom.copy(blob.position);
+    camera.getWorldPosition(camL); root.worldToLocal(camL);
+    st.callTo.copy(blob.position).lerp(camL, .55);
+    if (navigator.vibrate) try { navigator.vibrate(18); } catch (e) {}
+  }
+  function offer(){
+    if (!extra.drop) return;
+    const now = performance.now() / 1000; if (now - extra.drop.startAt < .9) return;
+    extra.drop.startAt = now; extra.drop.hitAt = -99;
   }
 
   function update(renderer, camera){
@@ -369,21 +502,16 @@ function buildScene(parent, data){
     if (st.foundAt === null) return;
     const t = now - st.foundAt;
 
-    // entrance: dust gathers (0–2.4s), the shrine fades in, the lamp-light warms up
     pU.uT.value = ease(seg(t, 0, 2.4));
     shrineMat.opacity = ease(seg(t, 1.6, 1.1));
     shrineMat.transparent = shrineMat.opacity < .999; shrineMat.depthWrite = !shrineMat.transparent;
-    hemi.intensity = 1.1 * ease(seg(t, 1.2, 1.4));
-    pU.uFade.value = 1;
+    hemi.intensity = (cinema ? .5 : 1.1) * ease(seg(t, 1.2, 1.4));
 
     // the light
     const appear = seg(t, 2.6, .8);
     pathAt(now, tmp);
     const ct = now - st.callAt;
-    if (ct < 3.4){
-      const go = ct < 1 ? smooth(ct) : 1, back = ct > 2.2 ? smooth((ct - 2.2) / 1.2) : 0;
-      tmp.copy(st.callFrom.clone().lerp(st.callTo, go).lerp(tmp, back));
-    }
+    if (ct < 3.4){ const go = ct < 1 ? smooth(ct) : 1, back = ct > 2.2 ? smooth((ct - 2.2) / 1.2) : 0; tmp.copy(st.callFrom.clone().lerp(st.callTo, go).lerp(tmp, back)); }
     blob.position.copy(tmp);
     const pulse = ct < 1.6 ? Math.max(0, 1 - Math.abs(ct - 1) / .6) : 0;
     core.material.opacity = appear;
@@ -391,10 +519,9 @@ function buildScene(parent, data){
     halo.scale.setScalar(.2 * (1 + .1 * Math.sin(now * 3) + pulse * .9));
     light.intensity = .65 * appear * (1 + pulse * 2) * (.92 + .08 * Math.sin(now * 9.0) * Math.sin(now * 5.3));
     pU.uBlob.value.copy(blob.position);
-    pU.uFlash.value = pulse * .7;
+    let flash = pulse * .7;
     if (ct > .9 && ct < 1.9){ const w = ct - .9; ripple.position.copy(blob.position); ripple.scale.setScalar(.06 + w * .6); ripple.material.opacity = (1 - w) * .9; }
     else ripple.material.opacity = 0;
-
     history.unshift(blob.position.clone()); if (history.length > TRAIL * 2) history.pop();
     for (let i = 0; i < TRAIL; i++){
       const h = history[Math.min(history.length - 1, i * 2)];
@@ -402,19 +529,218 @@ function buildScene(parent, data){
       trailA[i] = appear * (1 - i / TRAIL);
     }
     tgeo.attributes.position.needsUpdate = true; tgeo.attributes.a.needsUpdate = true;
+
+    if (cinema){
+      const live = seg(t, 1.0, 2.0);
+      spot.intensity = 1.25 * live * (.94 + .06 * Math.sin(now * .7));
+      lamp.intensity = .35 * live * (.8 + .2 * Math.sin(now * 13.0) * Math.sin(now * 7.7) + .05 * Math.random());
+      extra.shaftTime.value = now;
+      extra.shafts.children.forEach((m) => { m.material.uniforms.uI.value = .7 * m.userData.k * live * (.85 + .15 * Math.sin(now * .5 + m.userData.k * 9.0)); });
+      extra.motesU.uTime.value = now; extra.motesU.uI.value = live;
+      // incense
+      extra.puffs.forEach((s) => {
+        const k = ((now * .09) + s.userData.off) % 1;
+        s.position.copy(extra.smokeSrc).add(tmp.set(Math.sin(k * 9 + s.userData.off * 20) * .03 * k, k * .55, Math.cos(k * 7) * .02 * k));
+        s.scale.setScalar(.04 + k * .22); s.material.rotation += s.userData.spin * .01;
+        s.material.opacity = .32 * live * Math.sin(k * Math.PI) * (1 - k * .4);
+      });
+      // water offering: falls under gravity, splashes light on impact; it also drips by itself now and then
+      const D = extra.drop;
+      if (now - D.startAt > 11 && now - D.auto > 11 && t > 6){ D.auto = now; D.startAt = now; D.hitAt = -99; D.quiet = true; }
+      const dt = now - D.startAt, fall = .62;
+      if (dt < fall){
+        const k = dt / fall; D.group.position.copy(POT).lerp(LING, k * k);
+        D.core.material.opacity = .95; D.light.intensity = .4;
+      } else {
+        if (D.hitAt < D.startAt){ D.hitAt = now; if (!D.quiet) { plink(); bell(392, .12); } D.quiet = false; }
+        D.core.material.opacity = 0; D.light.intensity = 0;
+      }
+      const ht = now - D.hitAt;
+      if (ht >= 0 && ht < 2.2){
+        const w = ht / 2.2;
+        D.wave.scale.setScalar(.02 + ease(w) * .22); D.wave.material.opacity = (1 - w) * .85;
+        D.halo.material.opacity = (1 - w) * .8; D.halo.scale.setScalar(.25 + w * .5);
+        flash += (1 - w) * .8;
+        spot.intensity += (1 - w) * 1.6;
+      } else { D.wave.material.opacity = 0; D.halo.material.opacity = 0; }
+    }
+    pU.uFlash.value = flash;
   }
 
   return {
-    update, call,
+    root, update, call, offer, st,
     found(){ const now = performance.now() / 1000; if (st.foundAt === null || st.lostAt === null || now - st.lostAt > 1.5) st.foundAt = now; st.lostAt = null; },
-    lost(){ st.lostAt = performance.now() / 1000; }
+    lost(){ st.lostAt = performance.now() / 1000; },
+    revealed(){ st.foundAt = performance.now() / 1000 - 6; st.lostAt = null; },
+    LING, POT
   };
 }
 
 /* =====================================================================
-   RUN: AR (MindAR image tracking) or a 3D preview
+   THE SANCTUM: a cinematic camera that flies in through the window,
+   drifts gently, and follows touch (drag = look around, pinch = closer).
    ===================================================================== */
-let fx = null, tracking = false, shrineData = null;
+function startSanctum(data, from){
+  const box = $('cinema'); box.classList.remove('hidden');
+  const W = () => box.clientWidth || innerWidth, H = () => box.clientHeight || innerHeight;
+  const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+  renderer.setSize(W(), H());
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = .92;
+  renderer.setClearColor(0x000000, 0);
+  box.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  if (from.background) scene.background = new THREE.Color(from.background);
+  const camera = new THREE.PerspectiveCamera(from.fov || 45, W() / H(), .005, 30);
+  const holder = new THREE.Group(); scene.add(holder);
+  const fx = buildScene(holder, data, { cinema: true });
+  if (from.reveal) fx.found(); else fx.revealed();
+  const LING = fx.LING;
+
+  // post: bloom + a warm film grade with vignette and grain
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(W() / 2, H() / 2), .5, .55, .8); composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+  const grade = new ShaderPass({
+    uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uAspect: { value: W() / H() } },
+    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime, uAspect; varying vec2 vUv;
+      float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+      void main(){
+        vec4 c = texture2D(tDiffuse, vUv);
+        c.rgb = pow(c.rgb, vec3(.96, 1.0, 1.07)) * vec3(1.05, 1.0, .93);          // warm lamp-light grade
+        vec2 q = (vUv - .5) * vec2(uAspect, 1.0);
+        c.rgb *= mix(1.0, smoothstep(1.05, .25, length(q)), .75);                // vignette
+        c.rgb += (h(vUv * 911.0 + fract(uTime) * 37.0) - .5) * .03;               // film grain
+        gl_FragColor = c;
+      }`
+  });
+  composer.addPass(grade);
+
+  // --- the fly-in
+  const startPos = from.pos.clone();
+  const startLook = from.look.clone();
+  const fovStart = camera.fov, fovIn = 58;
+  const flyDelay = from.delay || 0, FLY = REDUCE ? 2.2 : 4.6;
+  const inside0 = new THREE.Vector3(LING.x + .04, LING.y + .25, LING.z + .54);
+  const curve = new THREE.CatmullRomCurve3([
+    startPos,
+    startPos.clone().lerp(new THREE.Vector3(0, -.05, .1), .55),
+    new THREE.Vector3(0, -.12, .02),
+    new THREE.Vector3(LING.x * .5, LING.y + .26, -.08),
+    inside0
+  ], false, 'centripetal', .5);
+  const lookTarget = new THREE.Vector3(), tmpV = new THREE.Vector3();
+
+  // --- inside controller (spherical around the Shivling)
+  const ctl = {
+    yaw: 0, pitch: .4, r: .58,                 // current
+    vy: 0, vp: 0,                                // inertia
+    lastTouch: -99, pointers: new Map(), pinch0: 0, r0: .58, tapStart: null
+  };
+  const LIM = { yaw: 1.2, pMin: .12, pMax: .85, rMin: .3, rMax: .72 };
+  const el = renderer.domElement; el.style.touchAction = 'none';
+  el.addEventListener('pointerdown', (e) => {
+    el.setPointerCapture?.(e.pointerId);
+    ctl.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ctl.pointers.size === 1) ctl.tapStart = { x: e.clientX, y: e.clientY, t: performance.now() };
+    if (ctl.pointers.size === 2){ const [a, b] = [...ctl.pointers.values()]; ctl.pinch0 = Math.hypot(a.x - b.x, a.y - b.y); ctl.r0 = ctl.r; ctl.tapStart = null; }
+    ctl.lastTouch = performance.now() / 1000; hintSeen();
+  });
+  el.addEventListener('pointermove', (e) => {
+    const p = ctl.pointers.get(e.pointerId); if (!p) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+    if (ctl.pointers.size >= 2){
+      const [a, b] = [...ctl.pointers.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (ctl.pinch0 > 0) ctl.r = clamp(ctl.r0 * ctl.pinch0 / d, LIM.rMin, LIM.rMax);
+    } else if (inside){
+      ctl.vy = -dx * .0045; ctl.vp = dy * .003;
+      ctl.yaw = clamp(ctl.yaw + ctl.vy, -LIM.yaw, LIM.yaw); ctl.pitch = clamp(ctl.pitch + ctl.vp, LIM.pMin, LIM.pMax);
+    }
+    if (ctl.tapStart && Math.hypot(e.clientX - ctl.tapStart.x, e.clientY - ctl.tapStart.y) > 8) ctl.tapStart = null;
+    ctl.lastTouch = performance.now() / 1000;
+  });
+  const up = (e) => {
+    ctl.pointers.delete(e.pointerId);
+    if (ctl.tapStart && performance.now() - ctl.tapStart.t < 450){ if (inside){ fx.offer(); bell(392, .0001); } else fx.call(camera); }
+    ctl.tapStart = null; ctl.lastTouch = performance.now() / 1000;
+  };
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  el.addEventListener('wheel', (e) => { e.preventDefault(); ctl.r = clamp(ctl.r * (1 + e.deltaY * .001), LIM.rMin, LIM.rMax); ctl.lastTouch = performance.now() / 1000; }, { passive: false });
+
+  addEventListener('resize', () => {
+    renderer.setSize(W(), H()); composer.setSize(W(), H()); camera.aspect = W() / H(); camera.updateProjectionMatrix(); grade.uniforms.uAspect.value = W() / H();
+  });
+
+  let crossed = false, inside = false, t0 = performance.now() / 1000, insideAt = 0;
+  const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
+
+  function hintSeen(){ $('hint').classList.add('fade'); }
+
+  function cross(){
+    crossed = true;
+    $('flash').classList.remove('go'); void $('flash').offsetWidth; $('flash').classList.add('go');
+    $('arStage').style.opacity = '0';
+    setTimeout(() => { scene.background = new THREE.Color(0x020103); renderer.setClearColor(0x020103, 1); from.onCrossed && from.onCrossed(); }, 350);
+    setTimeout(() => { $('ar').classList.add('on'); $('mantra').classList.add('on'); bell(294, .11); }, 900);
+    setTimeout(() => { $('mantra').classList.remove('on'); }, 6200);
+  }
+
+  renderer.setAnimationLoop(() => {
+    const now = performance.now() / 1000, t = now - t0;
+    const k = clamp01((t - flyDelay) / FLY), e = easeInOut(k);
+
+    if (!inside){
+      curve.getPointAt(e, camPos);
+      // look: from where the viewer was looking, onto the Shivling, then slightly up at the pot
+      lookTarget.copy(startLook).lerp(LING.clone().add(tmpV.set(0, .08, 0)), smooth(clamp01(k * 1.4)));
+      camera.position.copy(camPos); camera.lookAt(lookTarget);
+      camera.fov = fovStart + (fovIn - fovStart) * e; camera.updateProjectionMatrix();
+      if (!crossed && camPos.z < .06 && k > 0) cross();
+      if (k >= 1){
+        inside = true; insideAt = now;
+        // seed the controller from where the fly-in ended
+        const d = camPos.clone().sub(LING); ctl.r = clamp(d.length(), LIM.rMin, LIM.rMax);
+        ctl.yaw = Math.atan2(d.x, d.z); ctl.pitch = clamp(Math.asin(d.y / d.length()), LIM.pMin, LIM.pMax);
+        $('hint').textContent = 'Drag to look around · pinch to move closer · tap to offer water';
+        $('hint').classList.remove('hidden', 'fade');
+        setTimeout(hintSeen, 7000);
+      }
+    } else {
+      // gentle cinematic drift when nobody is touching
+      const idle = clamp01((now - ctl.lastTouch - 2.5) / 3);
+      const ti = now - insideAt;
+      ctl.vy *= .9; ctl.vp *= .9;
+      if (Math.abs(ctl.vy) > .0005 || Math.abs(ctl.vp) > .0005){ ctl.yaw = clamp(ctl.yaw + ctl.vy, -LIM.yaw, LIM.yaw); ctl.pitch = clamp(ctl.pitch + ctl.vp, LIM.pMin, LIM.pMax); }
+      const autoYaw = Math.sin(ti * .085) * .85, autoPitch = .4 + Math.sin(ti * .11) * .1, autoR = .58 + Math.sin(ti * .07) * .07;
+      ctl.yaw += (autoYaw - ctl.yaw) * .006 * idle; ctl.pitch += (autoPitch - ctl.pitch) * .006 * idle; ctl.r += (autoR - ctl.r) * .004 * idle;
+      const cp = Math.cos(ctl.pitch);
+      camPos.set(LING.x + Math.sin(ctl.yaw) * cp * ctl.r, LING.y + Math.sin(ctl.pitch) * ctl.r + .02, LING.z + Math.cos(ctl.yaw) * cp * ctl.r);
+      // breathing hand-held feel
+      camPos.x += Math.sin(now * .9) * .0025; camPos.y += Math.sin(now * 1.3) * .002;
+      camPos.x = clamp(camPos.x, -.68, .68); camPos.z = clamp(camPos.z, -1.4, -.06); camPos.y = clamp(camPos.y, -.56, .55);
+      camera.position.lerp(camPos, .12);
+      camLook.copy(LING).add(tmpV.set(0, .1 + Math.sin(ti * .13) * .05, 0));
+      camera.lookAt(camLook);
+      // the light sometimes comes to visit the viewer
+      fx.st.out.copy(camera.position).add(tmpV.set(0, -.03, 0).add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(.16)));
+    }
+
+    fx.update(renderer, camera);
+    grade.uniforms.uTime.value = now;
+    if (crossed) composer.render(); else renderer.render(scene, camera);
+  });
+
+  return { camera };
+}
+
+/* =====================================================================
+   RUN
+   ===================================================================== */
+let shrineData = null;
 const getShrine = () => shrineData || (shrineData = loadShrine());
 
 async function startAR(){
@@ -430,15 +756,43 @@ async function startAR(){
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     const anchor = mindar.addAnchor(0);
-    fx = buildScene(anchor.group, data);
+    const fx = buildScene(anchor.group, data);
+    let tracking = false, entering = false, readyAt = null;
     anchor.onTargetFound = () => { tracking = true; fx.found(); $('hint').classList.remove('hidden'); };
     anchor.onTargetLost = () => { tracking = false; fx.lost(); $('hint').classList.add('hidden'); };
     await mindar.start();
     $('loading').classList.add('hidden');
-    renderer.setAnimationLoop(() => { fx.update(renderer, camera); renderer.render(scene, camera); });
-    const tap = () => { if (tracking) fx.call(camera); };
-    $('arStage').addEventListener('pointerdown', tap);
-    $('scanning').addEventListener('pointerdown', tap);
+
+    const enter = () => {
+      if (entering || !tracking) return; entering = true;
+      $('enterBtn').classList.add('hidden'); $('hint').classList.add('hidden');
+      renderer.domElement.style.opacity = '0';          // the sanctum view takes over drawing the shrine
+      // where the phone is, in poster space, so the flight starts exactly from the AR view
+      anchor.group.updateMatrixWorld(true); camera.updateMatrixWorld(true);
+      const inv = anchor.group.matrixWorld.clone().invert();
+      const pos = camera.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv);
+      const dir = camera.getWorldDirection(new THREE.Vector3()).transformDirection(inv);
+      const look = pos.clone().add(dir.multiplyScalar(pos.length()));
+      startSanctum(data, { pos, look, fov: camera.fov, onCrossed: () => { renderer.setAnimationLoop(null); try { mindar.stop(); } catch (e) {} } });
+    };
+    $('enterBtn').addEventListener('click', enter);
+
+    renderer.setAnimationLoop(() => {
+      fx.update(renderer, camera); renderer.render(scene, camera);
+      // once the shrine has formed, offer to step inside (and go on our own after a few seconds)
+      if (tracking && !entering && fx.st.foundAt !== null){
+        const t = performance.now() / 1000 - fx.st.foundAt;
+        if (t > 4.2){
+          $('enterBtn').classList.remove('hidden');
+          if (readyAt === null) readyAt = performance.now() / 1000;
+          const p = clamp01((performance.now() / 1000 - readyAt) / 4);
+          $('enterProg').style.strokeDashoffset = String(100 - p * 100);
+          if (p >= 1) enter();
+        }
+      } else if (!tracking && !entering){ readyAt = null; $('enterBtn').classList.add('hidden'); }
+    });
+    const tap = (e) => { if (tracking && !entering && e.target.closest('button') === null) fx.call(camera); };
+    $('ar').addEventListener('pointerdown', tap);
   } catch (e) {
     console.error(e);
     $('loading').classList.add('hidden');
@@ -453,26 +807,9 @@ async function startPreview(){
   $('intro').classList.add('hidden'); $('ar').classList.remove('hidden');
   $('loading').textContent = 'Loading the shrine…'; $('loading').classList.remove('hidden');
   const data = await getShrine();
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-  renderer.setSize(innerWidth, innerHeight);
-  $('arStage').appendChild(renderer.domElement);
-  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x3a332d);   // stands in for the wall the poster hangs on
-  const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, .01, 50);
-  const holder = new THREE.Group(); scene.add(holder);
-  fx = buildScene(holder, data); fx.found();
-  $('loading').classList.add('hidden'); $('hint').textContent = 'Drag to look inside · tap to call the light'; $('hint').classList.remove('hidden');
-  let yaw = 0, pitch = 0, drag = null;
-  renderer.domElement.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, yaw, pitch, moved: false }; });
-  addEventListener('pointermove', (e) => { if (!drag) return; yaw = Math.max(-.7, Math.min(.7, drag.yaw - (e.clientX - drag.x) * .005)); pitch = Math.max(-.4, Math.min(.4, drag.pitch + (e.clientY - drag.y) * .004)); if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) drag.moved = true; });
-  addEventListener('pointerup', () => { if (drag && !drag.moved) fx.call(camera); drag = null; });
-  addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
-  renderer.setAnimationLoop(() => {
-    const t = performance.now() / 1000, a = yaw + Math.sin(t * .2) * .25, d = 2.4;
-    camera.position.set(Math.sin(a) * d, Math.sin(pitch) * d, Math.cos(a) * Math.cos(pitch) * d); camera.lookAt(0, 0, -.2);
-    fx.update(renderer, camera); renderer.render(scene, camera);
-  });
+  $('loading').classList.add('hidden');
+  // stand in front of the poster on a plain wall, watch it form, then glide in
+  startSanctum(data, { pos: new THREE.Vector3(.18, -.02, 2.3), look: new THREE.Vector3(0, -.05, 0), fov: 38, background: 0x3a332d, reveal: true, delay: 4.8 });
 }
 
 $('startBtn').addEventListener('click', startAR);

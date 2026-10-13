@@ -8,4 +8,4 @@ Web AR for the armour photo. Open https://superpranit.github.io/bushido-ar/ on a
 
 ## Shiva Shrine (`/shiva/`)
 
-https://superpranit.github.io/bushido-ar/shiva/: the poster opens like a window into a 3D scan of a Shiva shrine, with a small light drifting around the Shivling. Point a phone at `shiva/shiva-target-full.jpg` or the poster in `shiva/poster-A3.pdf`. Add `?preview` to the link to see it in 3D on a laptop without a camera.
+https://superpranit.github.io/bushido-ar/shiva/: the poster opens like a window into a 3D scan of a Shiva shrine, then the camera glides inside. In the sanctum: drag to look around, pinch to move closer, tap to offer water (a drop falls from the hanging pot with a bell). Point a phone at `shiva/shiva-target-full.jpg` or the poster in `shiva/poster-A3.pdf`. Add `?preview` to the link to see it in 3D on a laptop without a camera.
