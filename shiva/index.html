@@ -755,11 +755,15 @@ async function startAR(){
     const { renderer, scene, camera } = mindar;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    const anchor = mindar.addAnchor(0);
+    // two posters trigger the same shrine: the cinematic one (0) and the earlier titled one (1)
+    const anchors = [mindar.addAnchor(0), mindar.addAnchor(1)];
+    let anchor = anchors[0];
     const fx = buildScene(anchor.group, data);
     let tracking = false, entering = false, readyAt = null;
-    anchor.onTargetFound = () => { tracking = true; fx.found(); $('hint').classList.remove('hidden'); };
-    anchor.onTargetLost = () => { tracking = false; fx.lost(); $('hint').classList.add('hidden'); };
+    anchors.forEach((a) => {
+      a.onTargetFound = () => { if (!entering){ anchor = a; a.group.add(fx.root); } tracking = true; fx.found(); $('hint').classList.remove('hidden'); };
+      a.onTargetLost = () => { if (a !== anchor) return; tracking = false; fx.lost(); $('hint').classList.add('hidden'); };
+    });
     await mindar.start();
     $('loading').classList.add('hidden');
 
